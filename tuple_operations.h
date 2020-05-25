@@ -32,8 +32,11 @@
  * 
  */
 
+// The following classes are defined int this file:
+class tuple_operations;
 
-
+template <typename format>
+class tuple_cast;
 
 
 /*
@@ -58,7 +61,18 @@
  */
 template <size_t iterator>
 class tuple_operations_internal{
-public:
+private:
+
+    // Making the functions visible to the wrapper class.
+    friend class tuple_operations;
+
+    /*
+     * tuple_operator_internal<n> cannot access tuple_operator_internal<n - 1> private members by default.
+     * Makes sense because are two different types, but still annoying.
+     * So we just friend this class with every variation of itself.
+     */
+    template <size_t all>
+    friend class tuple_operations_internal;
 
     // ADD
     /*
@@ -136,7 +150,17 @@ public:
  */
 template <>
 class tuple_operations_internal<0>{
-public:
+private:
+
+    // Making the functions visible to the wrapper class.
+    friend class tuple_operations;
+
+    /*
+     * tuple_operator_internal<1> cannot access tuple_operator_internal<0> private members by default.
+     * So we just friend this class with every variation of itself.
+     */
+    template <size_t all>
+    friend class tuple_operations_internal;
 
     // ADD
     template <typename ... args_lhs_t, typename ... args_rhs_t>
@@ -251,7 +275,16 @@ public:
  */
 template <typename format, size_t iterator>
 class tuple_cast_internal{
-public:
+private:
+
+    // Making the functions visible to the wrapper class.
+    template <typename all>
+    friend class tuple_cast;
+
+    // Making members accessible to variations of this class.
+    template <typename all_types, size_t all_values>
+    friend class tuple_cast_internal;
+
     // (STATIC) CAST
     /*
      * static cast go brrrrrrrrrrrr
@@ -268,7 +301,16 @@ public:
 
 template <typename format>
 class tuple_cast_internal<format, 0>{
-public:
+private:
+
+    // Making the functions visible to the wrapper class.
+    template <typename all>
+    friend class tuple_cast;
+
+    // Making members accessible to variations of this class.
+    template <typename all_types, size_t all_values>
+    friend class tuple_cast_internal;
+
     // (STATIC) CAST
     template <typename ... args_t>
     static auto all(std::tuple<args_t...> args){
