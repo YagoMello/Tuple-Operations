@@ -3,7 +3,7 @@
  * Email:   yago.t.mello@gmail.com
  * Github:  yagomello
  * Created: 2020-05-24
- * Updated: 2020-05-24
+ * Updated: 2020-05-25
  * License: MIT
  */
 
@@ -14,6 +14,27 @@
 
 //INCLUDE <>
 #include <tuple>
+
+/*
+ * Disclaimer:
+ * Everythong will appear to be defined 3 times.
+ * The first is the real implementation.
+ * The second is the case when the iterator is 0.
+ * The third is a wrapper to simplify the call.
+ * 
+ * Example:
+ * tuple_operations_internal<iterator>::add(arg1, arg2)
+ * tuple_operations_internal<0>::add(arg1, arg2)
+ * tuple_operatons::add(arg1, arg2)
+ * 
+ * The last one is also used to make the overloadings:
+ * arg1 + arg2
+ * 
+ */
+
+
+
+
 
 /*
  * This class only purpose is to allow partial specialization
@@ -36,9 +57,128 @@
  * 
  */
 template <size_t iterator>
-class tuple_operations{
+class tuple_operations_internal{
 public:
 
+    // ADD
+    /*
+     * The internal variation of the add function.
+     * concatenates another add with the result of the operation of 2 values, and return the resulting tuple.
+     */
+    template <typename ... args_lhs_t, typename ... args_rhs_t>
+    static auto add(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+        /*
+         * This is where the recursion happens,
+         * expands as
+         * {add(...), a[n] + b[n]}
+         * {add(...), a[n-1] + b[n-1], a[n] + b[n]}
+         * {add(...), a[n-2] + b[n-2], a[n-1] + b[n-1], a[n] + b[n]}
+         * when iterator - 1 == 0, calls the specialized version
+         * which stops the recursion by returning only the std::make_tuple(std_get...) part
+         * without calling add
+         */
+        return std::tuple_cat(
+            tuple_operations_internal<iterator - 1>::add(lhs, rhs), 
+            std::make_tuple(std::get<iterator>(lhs) + std::get<iterator>(rhs))
+        );
+    }
+    
+    // SUB
+    template <typename ... args_lhs_t, typename ... args_rhs_t>
+    static auto sub(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+        return std::tuple_cat(
+            tuple_operations_internal<iterator - 1>::sub(lhs, rhs), 
+            std::make_tuple(std::get<iterator>(lhs) - std::get<iterator>(rhs))
+        );
+    }
+    
+    // MUL
+    template <typename ... args_lhs_t, typename ... args_rhs_t>
+    static auto mul(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+        return std::tuple_cat(
+            tuple_operations_internal<iterator - 1>::mul(lhs, rhs), 
+            std::make_tuple(std::get<iterator>(lhs) * std::get<iterator>(rhs))
+        );
+    }
+    
+    // DIV
+    template <typename ... args_lhs_t, typename ... args_rhs_t>
+    static auto div(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+        return std::tuple_cat(
+            tuple_operations_internal<iterator - 1>::div(lhs, rhs), 
+            std::make_tuple(std::get<iterator>(lhs) / std::get<iterator>(rhs))
+        );
+    }
+    
+    // ELEMENT_OP
+    template <typename ... args_lhs_t, typename ... args_rhs_t, typename duck_typing_class>
+    static auto element_op(duck_typing_class& duck, std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+        return std::tuple_cat(
+            tuple_operations_internal<iterator - 1>::element_op(duck, lhs, rhs), 
+            std::make_tuple(duck.operation(std::get<iterator>(lhs), std::get<iterator>(rhs)))
+        );
+    }
+
+    // APPLY_TO
+    template <typename ... args_t, typename duck_typing_class>
+    static auto apply_to(duck_typing_class& duck, std::tuple<args_t...> args){
+        return std::tuple_cat(
+            tuple_operations_internal<iterator - 1>::apply_to(duck, args), 
+            std::make_tuple(duck.operation(std::get<iterator>(args)))
+        );
+    }
+    
+};
+
+/*
+ * Special case when the iterator is 0.
+ * Stops the recursion.
+ */
+template <>
+class tuple_operations_internal<0>{
+public:
+
+    // ADD
+    template <typename ... args_lhs_t, typename ... args_rhs_t>
+    static auto add(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+        return std::make_tuple(std::get<0>(lhs) + std::get<0>(rhs));
+    }
+    
+    // SUB
+    template <typename ... args_lhs_t, typename ... args_rhs_t>
+    static auto sub(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+        return std::make_tuple(std::get<0>(lhs) - std::get<0>(rhs));
+    }
+
+    // MUL
+    template <typename ... args_lhs_t, typename ... args_rhs_t>
+    static auto mul(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+        return std::make_tuple(std::get<0>(lhs) * std::get<0>(rhs));
+    }
+    
+    // DIV
+    template <typename ... args_lhs_t, typename ... args_rhs_t>
+    static auto div(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+        return std::make_tuple(std::get<0>(lhs) / std::get<0>(rhs));
+    }
+    
+    // ELEMENT_OP
+    template <typename ... args_lhs_t, typename ... args_rhs_t, typename duck_typing_class>
+    static auto element_op(duck_typing_class& duck, std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+        return std::make_tuple(duck.operation(std::get<0>(lhs), std::get<0>(rhs)));
+    }
+
+    // APPLY_TO
+    template <typename ... args_t, typename duck_typing_class>
+    static auto apply_to(duck_typing_class& duck, std::tuple<args_t...> args){
+        return std::make_tuple(duck.operation(std::get<0>(args)));
+    }
+    
+};
+
+
+class tuple_operations{
+public:
     // ADD
     /*
      * This function returns a tuple.
@@ -52,86 +192,37 @@ public:
          * which is "sizeof...(args_lhs_t) - 1".
          * This value is specified on the class because of the partial specialization problem.
          */
-        return tuple_operations<sizeof...(args_lhs_t) - 1>::add_internal(lhs, rhs);
-    }
-    /*
-     * The internal variation of the add function.
-     * concatenates another add_internal with the result of the operation of 2 values, and return the resulting tuple.
-     */
-    template <typename ... args_lhs_t, typename ... args_rhs_t>
-    static auto add_internal(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        /*
-         * This is where the recursion happens,
-         * expands as
-         * {add_internal(...), a[n] + b[n]}
-         * {add_internal(...), a[n-1] + b[n-1], a[n] + b[n]}
-         * {add_internal(...), a[n-2] + b[n-2], a[n-1] + b[n-1], a[n] + b[n]}
-         * when iterator - 1 == 0, calls the specialized version
-         * which stops the recursion by returning only the std::make_tuple(std_get...) part
-         * without calling add_internal
-         */
-        return std::tuple_cat(
-            tuple_operations<iterator - 1>::add_internal(lhs, rhs), 
-            std::make_tuple(std::get<iterator>(lhs) + std::get<iterator>(rhs))
-        );
+        return tuple_operations_internal<sizeof...(args_lhs_t) - 1>::add(lhs, rhs);
     }
     
     // SUB
     template <typename ... args_lhs_t, typename ... args_rhs_t>
     static auto sub(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return tuple_operations<sizeof...(args_lhs_t) - 1>::sub_internal(lhs, rhs);
+        return tuple_operations_internal<sizeof...(args_lhs_t) - 1>::sub(lhs, rhs);
     }
-    template <typename ... args_lhs_t, typename ... args_rhs_t>
-    static auto sub_internal(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return std::tuple_cat(
-            tuple_operations<iterator - 1>::sub_internal(lhs, rhs), 
-            std::make_tuple(std::get<iterator>(lhs) - std::get<iterator>(rhs))
-        );
-    }
-    
+
     // MUL
     template <typename ... args_lhs_t, typename ... args_rhs_t>
     static auto mul(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return tuple_operations<sizeof...(args_lhs_t) - 1>::mul_internal(lhs, rhs);
+        return tuple_operations_internal<sizeof...(args_lhs_t) - 1>::mul(lhs, rhs);
     }
-    template <typename ... args_lhs_t, typename ... args_rhs_t>
-    static auto mul_internal(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return std::tuple_cat(
-            tuple_operations<iterator - 1>::mul_internal(lhs, rhs), 
-            std::make_tuple(std::get<iterator>(lhs) * std::get<iterator>(rhs))
-        );
-    }
-    
+
     // DIV
     template <typename ... args_lhs_t, typename ... args_rhs_t>
     static auto div(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return tuple_operations<sizeof...(args_lhs_t) - 1>::div_internal(lhs, rhs);
+        return tuple_operations_internal<sizeof...(args_lhs_t) - 1>::div(lhs, rhs);
     }
-    template <typename ... args_lhs_t, typename ... args_rhs_t>
-    static auto div_internal(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return std::tuple_cat(
-            tuple_operations<iterator - 1>::div_internal(lhs, rhs), 
-            std::make_tuple(std::get<iterator>(lhs) / std::get<iterator>(rhs))
-        );
-    }
-    
+
     // ELEMENT_OP
     /*
      * In this function we use duck typing. Polymorphism may be a better solution, but needs a vtable access.
-     * A 10 million value tuple would need 10 million vtable accesses. Oof.
+     * A 10 million value tuple would need 10 million vtable accesses. Imagine the ammount of cache misses. Oof.
      * I hacked this thing in 5 minutes just to have the option of using custom functions.
      * May change in the future. Or not.
      */
     template <typename ... args_lhs_t, typename ... args_rhs_t, typename duck_typing_class>
     static auto element_op(duck_typing_class& duck ,std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return tuple_operations<sizeof...(args_lhs_t) - 1>::element_op_internal(duck, lhs, rhs);
-    }
-    template <typename ... args_lhs_t, typename ... args_rhs_t, typename duck_typing_class>
-    static auto element_op_internal(duck_typing_class& duck, std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return std::tuple_cat(
-            tuple_operations<iterator - 1>::element_op_internal(duck, lhs, rhs), 
-            std::make_tuple(duck.operation(std::get<iterator>(lhs), std::get<iterator>(rhs)))
-        );
+        return tuple_operations_internal<sizeof...(args_lhs_t) - 1>::element_op(duck, lhs, rhs);
     }
 
     // APPLY_TO
@@ -140,62 +231,89 @@ public:
      */
     template <typename ... args_t, typename duck_typing_class>
     static auto apply_to(duck_typing_class& duck ,std::tuple<args_t...> args){
-        return tuple_operations<sizeof...(args_t) - 1>::apply_to_internal(duck, args);
+        return tuple_operations_internal<sizeof...(args_t) - 1>::apply_to(duck, args);
     }
-    template <typename ... args_t, typename duck_typing_class>
-    static auto apply_to_internal(duck_typing_class& duck, std::tuple<args_t...> args){
+
+};
+
+
+
+
+
+/*
+ * Adaptation of apply_to using static_cast.
+ * 
+ * Functions:
+ * --------------------------------------------------------------------------
+ * ALL        |  Cast every element of the tuple to the specified format    |
+ * --------------------------------------------------------------------------
+ * 
+ */
+template <typename format, size_t iterator>
+class tuple_cast_internal{
+public:
+    // (STATIC) CAST
+    /*
+     * static cast go brrrrrrrrrrrr
+     */
+    template <typename ... args_t>
+    static auto all(std::tuple<args_t...> args){
         return std::tuple_cat(
-            tuple_operations<iterator - 1>::apply_to_internal(duck, args), 
-            std::make_tuple(duck.operation(std::get<iterator>(args)))
+            tuple_cast_internal<format, iterator - 1>::all(args), 
+            std::make_tuple(static_cast<format>(std::get<iterator>(args)))
         );
     }
     
 };
 
-/*
- * Special case when the iterator is 0.
- * Stops the recursion.
- */
-template <>
-class tuple_operations<0>{
+template <typename format>
+class tuple_cast_internal<format, 0>{
 public:
-
-    // ADD
-    template <typename ... args_lhs_t, typename ... args_rhs_t>
-    static auto add_internal(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return std::make_tuple(std::get<0>(lhs) + std::get<0>(rhs));
+    // (STATIC) CAST
+    template <typename ... args_t>
+    static auto all(std::tuple<args_t...> args){
+        return std::make_tuple(static_cast<format>(std::get<0>(args)));
     }
-    
-    // SUB
-    template <typename ... args_lhs_t, typename ... args_rhs_t>
-    static auto sub_internal(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return std::make_tuple(std::get<0>(lhs) - std::get<0>(rhs));
-    }
-
-    // MUL
-    template <typename ... args_lhs_t, typename ... args_rhs_t>
-    static auto mul_internal(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return std::make_tuple(std::get<0>(lhs) * std::get<0>(rhs));
-    }
-    
-    // DIV
-    template <typename ... args_lhs_t, typename ... args_rhs_t>
-    static auto div_internal(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return std::make_tuple(std::get<0>(lhs) / std::get<0>(rhs));
-    }
-    
-    // ELEMENT_OP
-    template <typename ... args_lhs_t, typename ... args_rhs_t, typename duck_typing_class>
-    static auto element_op_internal(duck_typing_class& duck, std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
-        return std::make_tuple(duck.operation(std::get<0>(lhs), std::get<0>(rhs)));
-    }
-
-    // APPLY_TO
-    template <typename ... args_t, typename duck_typing_class>
-    static auto apply_to_internal(duck_typing_class& duck, std::tuple<args_t...> args){
-        return std::make_tuple(duck.operation(std::get<0>(args)));
-    }
-    
 };
+
+template <typename format>
+class tuple_cast{
+public:
+    template <typename ... args_t>
+    static auto all(std::tuple<args_t...> args){
+        return tuple_cast_internal<format, sizeof...(args_t) - 1>::all(args);
+    }
+};
+
+
+// OPERATOR OVERLOADING 
+/* 
+ * Just some basic overloading, simplifies the code a lot
+ * define NO_TUPLE_OPERATOR_OVERLOADING to prevent the overloads
+ */
+
+#ifndef NO_TUPLE_OPERATOR_OVERLOADING
+
+template <typename ... args_lhs_t, typename ... args_rhs_t>
+auto operator +(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+    return tuple_operations::add(lhs, rhs);
+}
+
+template <typename ... args_lhs_t, typename ... args_rhs_t>
+auto operator -(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+    return tuple_operations::sub(lhs, rhs);
+}
+
+template <typename ... args_lhs_t, typename ... args_rhs_t>
+auto operator *(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+    return tuple_operations::mul(lhs, rhs);
+}
+
+template <typename ... args_lhs_t, typename ... args_rhs_t>
+auto operator /(std::tuple<args_lhs_t...> lhs, std::tuple<args_rhs_t...> rhs){
+    return tuple_operations::div(lhs, rhs);
+}
+
+#endif //NO_TUPLE_OPERATOR_OVERLOADING
 
 #endif //TUPLE_OPERATIONS_H
